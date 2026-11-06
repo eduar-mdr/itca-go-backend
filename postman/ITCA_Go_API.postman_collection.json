@@ -169,7 +169,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Ruta 5 - Apopa a Sede Central\",\n  \"description\": \"Recorrido desde Apopa hasta la Sede Central ITCA-FEPADE\",\n  \"origin\": \"Apopa, San Salvador\",\n  \"destination\": \"Sede Central ITCA-FEPADE, Santa Tecla\",\n  \"active\": true,\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [-89.1792, 13.8072]\n  },\n  \"schedule\": [\"06:00 AM\", \"05:30 PM\"]\n}"
+              "raw": "{\n  \"name\": \"Ruta 5 - Apopa a Sede Central\",\n  \"description\": \"Recorrido desde Apopa hasta la Sede Central ITCA-FEPADE\",\n  \"origin\": \"Apopa, San Salvador\",\n  \"destination\": \"Sede Central ITCA-FEPADE, Santa Tecla\",\n  \"active\": true,\n  \"originLocation\": {\n    \"type\": \"Point\",\n    \"coordinates\": [-89.1792, 13.8072]\n  },\n  \"destinationLocation\": {\n    \"type\": \"Point\",\n    \"coordinates\": [-89.2863, 13.6714]\n  },\n  \"schedule\": [\"06:00 AM\", \"05:30 PM\"]\n}"
             },
             "url": {
               "raw": "{{base_url}}/routes",
@@ -230,7 +230,7 @@
               "host": ["{{base_url}}"],
               "path": ["routes", "{{route_id}}", "location"]
             },
-            "description": "Requiere rol 'driver' y ser el assignedDriver. Actualiza las coordenadas GPS y sincroniza con Firebase Realtime Database para que la app refleje la ubicación en tiempo real."
+            "description": "Requiere rol 'driver' y ser el assignedDriver. Actualiza currentLocation (posición del vehículo en movimiento) y sincroniza con Firebase Realtime Database para que la app refleje la ubicación en tiempo real en el mapa."
           },
           "response": []
         },

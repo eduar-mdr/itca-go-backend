@@ -1,5 +1,17 @@
 const { Schema, model } = require('mongoose');
 
+const geoPointSchema = {
+  type: {
+    type: String,
+    enum: ['Point'],
+    default: 'Point'
+  },
+  coordinates: {
+    type: [Number],
+    default: [0, 0]
+  }
+};
+
 const routeSchema = new Schema({
   name: {
     type: String,
@@ -26,17 +38,9 @@ const routeSchema = new Schema({
     type: Boolean,
     default: true
   },
-  location: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      default: 'Point'
-    },
-    coordinates: {
-      type: [Number],
-      default: [0, 0]
-    }
-  },
+  originLocation: geoPointSchema,
+  destinationLocation: geoPointSchema,
+  currentLocation: geoPointSchema,
   schedule: {
     type: [String],
     default: []
@@ -49,6 +53,6 @@ const routeSchema = new Schema({
   timestamps: true
 });
 
-routeSchema.index({ location: '2dsphere' });
+routeSchema.index({ currentLocation: '2dsphere' });
 
 module.exports = model('Route', routeSchema);

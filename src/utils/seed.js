@@ -63,7 +63,9 @@ const seed = async () => {
       origin: 'Centro Histórico, San Salvador',
       destination: 'Sede Central ITCA-FEPADE, Santa Tecla',
       active: true,
-      location: { type: 'Point', coordinates: [-89.2863, 13.6714] },
+      originLocation: { type: 'Point', coordinates: [-89.1914, 13.6989] },
+      destinationLocation: { type: 'Point', coordinates: [-89.2863, 13.6714] },
+      currentLocation: { type: 'Point', coordinates: [-89.2340, 13.6850] },
       schedule: ['06:00 AM', '06:30 AM', '12:00 PM', '05:00 PM', '05:30 PM'],
       assignedDriver: driver1._id
     },
@@ -73,7 +75,9 @@ const seed = async () => {
       origin: 'Soyapango, San Salvador',
       destination: 'Sede Central ITCA-FEPADE, Santa Tecla',
       active: true,
-      location: { type: 'Point', coordinates: [-89.1500, 13.7167] },
+      originLocation: { type: 'Point', coordinates: [-89.1500, 13.7167] },
+      destinationLocation: { type: 'Point', coordinates: [-89.2863, 13.6714] },
+      currentLocation: { type: 'Point', coordinates: [-89.1500, 13.7167] },
       schedule: ['05:45 AM', '06:15 AM', '04:45 PM'],
       assignedDriver: driver2._id
     },
@@ -83,7 +87,9 @@ const seed = async () => {
       origin: 'Terminal de buses, Santa Ana',
       destination: 'ITCA-FEPADE Regional Santa Ana',
       active: true,
-      location: { type: 'Point', coordinates: [-89.5597, 13.9946] },
+      originLocation: { type: 'Point', coordinates: [-89.5630, 13.9920] },
+      destinationLocation: { type: 'Point', coordinates: [-89.5597, 13.9946] },
+      currentLocation: { type: 'Point', coordinates: [-89.5615, 13.9933] },
       schedule: ['06:30 AM', '12:30 PM', '05:15 PM'],
       assignedDriver: driver1._id
     },
@@ -93,7 +99,9 @@ const seed = async () => {
       origin: 'Metrocentro, San Salvador',
       destination: 'Sede Central ITCA-FEPADE, Santa Tecla',
       active: false,
-      location: { type: 'Point', coordinates: [-89.2340, 13.7000] },
+      originLocation: { type: 'Point', coordinates: [-89.2340, 13.7000] },
+      destinationLocation: { type: 'Point', coordinates: [-89.2863, 13.6714] },
+      currentLocation: { type: 'Point', coordinates: [-89.2340, 13.7000] },
       schedule: ['05:30 PM', '09:30 PM'],
       assignedDriver: driver2._id
     }

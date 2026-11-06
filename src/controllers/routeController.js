@@ -27,7 +27,7 @@ const getRouteById = async (req, res, next) => {
 
 const createRoute = async (req, res, next) => {
   try {
-    const { name, description, origin, destination, active, location, schedule } = req.body;
+    const { name, description, origin, destination, active, originLocation, destinationLocation, schedule } = req.body;
 
     const route = await Route.create({
       name,
@@ -35,7 +35,9 @@ const createRoute = async (req, res, next) => {
       origin,
       destination,
       active,
-      location,
+      originLocation,
+      destinationLocation,
+      currentLocation: originLocation,
       schedule,
       assignedDriver: req.user._id
     });
@@ -58,12 +60,14 @@ const updateRoute = async (req, res, next) => {
       return response.error(res, 'No tienes permiso para modificar esta ruta', 403);
     }
 
-    const { name, description, origin, destination, active, schedule } = req.body;
+    const { name, description, origin, destination, active, originLocation, destinationLocation, schedule } = req.body;
     if (name !== undefined) route.name = name;
     if (description !== undefined) route.description = description;
     if (origin !== undefined) route.origin = origin;
     if (destination !== undefined) route.destination = destination;
     if (active !== undefined) route.active = active;
+    if (originLocation !== undefined) route.originLocation = originLocation;
+    if (destinationLocation !== undefined) route.destinationLocation = destinationLocation;
     if (schedule !== undefined) route.schedule = schedule;
     await route.save();
 
@@ -99,12 +103,12 @@ const updateRouteLocation = async (req, res, next) => {
       return response.error(res, 'No tienes permiso para actualizar la ubicación de esta ruta', 403);
     }
 
-    route.location.coordinates = coordinates;
+    route.currentLocation = { type: 'Point', coordinates };
     await route.save();
 
     await firebaseService.updateRouteLocation(route._id, coordinates);
 
-    response.success(res, route, 'Ubicación de ruta actualizada exitosamente');
+    response.success(res, route, 'Ubicación actual de ruta actualizada exitosamente');
   } catch (err) {
     next(err);
   }
