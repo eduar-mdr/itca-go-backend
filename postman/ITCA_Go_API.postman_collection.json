@@ -1,0 +1,389 @@
+{
+  "info": {
+    "name": "ITCA Go API",
+    "description": "Colección completa de la API RESTful de ITCA Go.\n\n**Setup:**\n1. Configurar la variable `base_url` (default: http://localhost:3000/api)\n2. Obtener un token de Firebase Auth y configurar la variable `token`\n3. Ejecutar el seed (`npm run seed`) para tener datos de prueba\n\n**Nota:** Los endpoints públicos (GET routes/active, GET trips, GET routes/:id, health) no requieren token.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000/api"
+    },
+    {
+      "key": "token",
+      "value": "TU_FIREBASE_AUTH_TOKEN_AQUI"
+    },
+    {
+      "key": "route_id",
+      "value": ""
+    },
+    {
+      "key": "trip_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health",
+      "item": [
+        {
+          "name": "GET Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Endpoint público. Retorna el estado del nodo, uptime y nodeId para validar balanceo de carga (R4)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Users",
+      "item": [
+        {
+          "name": "POST Sync User (Registro/Sincronización)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const data = pm.response.json();",
+                  "    console.log('Usuario sincronizado:', data.data.name, '- Rol:', data.data.role);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Carlos Medrano\",\n  \"role\": \"driver\",\n  \"studentId\": \"061622\",\n  \"phone\": \"7000-0001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/sync",
+              "host": ["{{base_url}}"],
+              "path": ["users", "sync"]
+            },
+            "description": "Requiere token Firebase Auth (verifyToken). Crea el usuario en MongoDB si no existe, o lo sincroniza si ya existe. El rol solo se asigna en la primera creación."
+          },
+          "response": []
+        },
+        {
+          "name": "GET User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["users", "profile"]
+            },
+            "description": "Requiere requireAuth (token + usuario existente en MongoDB). Retorna el perfil completo del usuario autenticado."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Routes",
+      "item": [
+        {
+          "name": "GET Active Routes (Público)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/routes/active",
+              "host": ["{{base_url}}"],
+              "path": ["routes", "active"]
+            },
+            "description": "Endpoint público. Retorna todas las rutas con active === true, incluyendo datos del conductor asignado."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Route by ID (Público)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/routes/{{route_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["routes", "{{route_id}}"]
+            },
+            "description": "Endpoint público. Retorna el detalle completo de una ruta por su ID."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Create Route",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set('route_id', data.data._id);",
+                  "    console.log('Route ID guardado:', data.data._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ruta 5 - Apopa a Sede Central\",\n  \"description\": \"Recorrido desde Apopa hasta la Sede Central ITCA-FEPADE\",\n  \"origin\": \"Apopa, San Salvador\",\n  \"destination\": \"Sede Central ITCA-FEPADE, Santa Tecla\",\n  \"active\": true,\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [-89.1792, 13.8072]\n  },\n  \"schedule\": [\"06:00 AM\", \"05:30 PM\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/routes",
+              "host": ["{{base_url}}"],
+              "path": ["routes"]
+            },
+            "description": "Requiere rol 'driver'. Crea una nueva ruta institucional. El assignedDriver se asigna automáticamente al usuario autenticado. Guarda el ID de la ruta creada en la variable {{route_id}}."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT Update Route",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ruta 5 - Apopa a Sede Central (Actualizada)\",\n  \"schedule\": [\"06:00 AM\", \"12:00 PM\", \"05:30 PM\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/routes/{{route_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["routes", "{{route_id}}"]
+            },
+            "description": "Requiere rol 'driver' y ser el assignedDriver de la ruta. Solo se pueden actualizar: name, description, origin, destination, active, schedule."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Update Route Location (GPS)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"coordinates\": [-89.2000, 13.7500]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/routes/{{route_id}}/location",
+              "host": ["{{base_url}}"],
+              "path": ["routes", "{{route_id}}", "location"]
+            },
+            "description": "Requiere rol 'driver' y ser el assignedDriver. Actualiza las coordenadas GPS y sincroniza con Firebase Realtime Database para que la app refleje la ubicación en tiempo real."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Route (Soft Delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routes/{{route_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["routes", "{{route_id}}"]
+            },
+            "description": "Requiere rol 'driver' y ser el assignedDriver. Hace soft delete (pone active = false). La ruta deja de aparecer en GET /routes/active."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Trips",
+      "item": [
+        {
+          "name": "GET Available Trips (Público)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/trips",
+              "host": ["{{base_url}}"],
+              "path": ["trips"]
+            },
+            "description": "Endpoint público. Retorna viajes con status === 'available' y availableSeats > 0, ordenados por departureTime."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Create Trip",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set('trip_id', data.data._id);",
+                  "    console.log('Trip ID guardado:', data.data._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origin\": \"Centro Histórico, San Salvador\",\n  \"destination\": \"Sede Central ITCA-FEPADE, Santa Tecla\",\n  \"departureTime\": \"2026-11-10T06:30:00.000Z\",\n  \"totalSeats\": 3,\n  \"simulatedPrice\": 1.25\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/trips",
+              "host": ["{{base_url}}"],
+              "path": ["trips"]
+            },
+            "description": "Requiere autenticación. Crea un viaje compartido. El driver se asigna automáticamente. availableSeats se inicializa igual a totalSeats. Sincroniza con Firebase RTDB. Guarda el ID en {{trip_id}}."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Request Seat (Reservar cupo - R2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{base_url}}/trips/{{trip_id}}/request",
+              "host": ["{{base_url}}"],
+              "path": ["trips", "{{trip_id}}", "request"]
+            },
+            "description": "Requiere autenticación. Validación atómica R2:\n- Verifica availableSeats > 0\n- Verifica que el usuario no sea el driver del viaje\n- Verifica que el usuario no esté ya en passengers\n- Decrementa availableSeats, agrega a passengers\n- Si availableSeats llega a 0, cambia status a 'full' y envía notificación FCM"
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Update Trip Status (R3)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"in_progress\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/trips/{{trip_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["trips", "{{trip_id}}", "status"]
+            },
+            "description": "Solo el conductor creador puede cambiar el estado.\nEstados permitidos: in_progress, completed, cancelled.\nDispara notificación push vía Firebase RTDB y FCM (R3).\n\nPrueba cambiando el valor de status en el body."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Trip",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/trips/{{trip_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["trips", "{{trip_id}}"]
+            },
+            "description": "Solo el conductor creador puede eliminar. Solo se puede eliminar si status === 'available'. Es un hard delete (se borra de la base de datos)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

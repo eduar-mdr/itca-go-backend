@@ -6,7 +6,11 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "seed": "node src/utils/seed.js",
+    "get-token": "node src/utils/getToken.js",
+    "get-token:driver": "node src/utils/getToken.js driver",
+    "get-token:student": "node src/utils/getToken.js student"
   },
   "keywords": [],
   "author": "",
