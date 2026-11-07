@@ -4,7 +4,9 @@ const {
   createTrip,
   requestSeat,
   updateTripStatus,
-  deleteTrip
+  deleteTrip,
+  addTripComment,
+  getTripComments
 } = require('../controllers/tripController');
 const { requireAuth } = require('../middlewares/authMiddleware');
 
@@ -15,5 +17,8 @@ router.post('/', requireAuth, createTrip);
 router.post('/:id/request', requireAuth, requestSeat);
 router.patch('/:id/status', requireAuth, updateTripStatus);
 router.delete('/:id', requireAuth, deleteTrip);
+
+router.post('/:id/comments', requireAuth, addTripComment);
+router.get('/:id/comments', requireAuth, getTripComments);
 
 module.exports = router;

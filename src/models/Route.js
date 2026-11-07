@@ -12,6 +12,21 @@ const geoPointSchema = {
   }
 };
 
+const commentSchema = new Schema({
+  author: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: [true, 'El autor del comentario es obligatorio']
+  },
+  text: {
+    type: String,
+    required: [true, 'El texto del comentario es obligatorio'],
+    trim: true
+  }
+}, {
+  timestamps: { createdAt: true, updatedAt: false }
+});
+
 const routeSchema = new Schema({
   name: {
     type: String,
@@ -48,7 +63,16 @@ const routeSchema = new Schema({
   assignedDriver: {
     type: Schema.Types.ObjectId,
     ref: 'User'
-  }
+  },
+  subscribers: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  hasActiveChat: {
+    type: Boolean,
+    default: false
+  },
+  comments: [commentSchema]
 }, {
   timestamps: true
 });

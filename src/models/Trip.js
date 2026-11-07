@@ -1,5 +1,20 @@
 const { Schema, model } = require('mongoose');
 
+const commentSchema = new Schema({
+  author: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: [true, 'El autor del comentario es obligatorio']
+  },
+  text: {
+    type: String,
+    required: [true, 'El texto del comentario es obligatorio'],
+    trim: true
+  }
+}, {
+  timestamps: { createdAt: true, updatedAt: false }
+});
+
 const tripSchema = new Schema({
   driver: {
     type: Schema.Types.ObjectId,
@@ -49,7 +64,12 @@ const tripSchema = new Schema({
   simulatedPrice: {
     type: Number,
     default: 0.00
-  }
+  },
+  hasActiveChat: {
+    type: Boolean,
+    default: false
+  },
+  comments: [commentSchema]
 }, {
   timestamps: true
 });

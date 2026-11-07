@@ -135,11 +135,121 @@ const deleteRoute = async (req, res, next) => {
   }
 };
 
+const subscribeToRoute = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const route = await Route.findById(req.params.id);
+
+    if (!route) {
+      return response.error(res, 'Ruta no encontrada', 404);
+    }
+
+    if (!route.active) {
+      return response.error(res, 'No puedes suscribirte a una ruta inactiva', 400);
+    }
+
+    if (route.subscribers.some(s => s.equals(userId))) {
+      return response.error(res, 'Ya estás suscrito a esta ruta', 400);
+    }
+
+    route.subscribers.push(userId);
+    await route.save();
+
+    if (route.hasActiveChat) {
+      await firebaseService.notifyActiveChatOnSubscription(userId, route.name);
+    }
+
+    response.success(res, route, 'Suscripción a la ruta exitosa');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const addRouteComment = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { text } = req.body;
+
+    if (!text || !text.trim()) {
+      return response.error(res, 'El texto del comentario es obligatorio', 400);
+    }
+
+    const route = await Route.findById(req.params.id);
+
+    if (!route) {
+      return response.error(res, 'Ruta no encontrada', 404);
+    }
+
+    const isSubscriber = route.subscribers.some(s => s.equals(userId));
+    const isDriver = route.assignedDriver && route.assignedDriver.equals(userId);
+
+    if (!isSubscriber && !isDriver) {
+      return response.error(res, 'Solo los suscriptores o el conductor pueden comentar en esta ruta', 403);
+    }
+
+    route.comments.push({ author: userId, text: text.trim() });
+
+    const isFirstComment = !route.hasActiveChat;
+    if (isFirstComment) {
+      route.hasActiveChat = true;
+    }
+
+    await route.save();
+
+    await firebaseService.pushCommentToRTDB('route', route._id, {
+      authorName: req.user.name,
+      text: text.trim()
+    });
+
+    if (isFirstComment) {
+      await firebaseService.notifyFirstComment(
+        route._id,
+        'route',
+        route.name,
+        route.subscribers
+      );
+    }
+
+    const populated = await Route.findById(route._id)
+      .populate('comments.author', 'name email');
+
+    response.success(res, populated.comments, 'Comentario agregado exitosamente', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getRouteComments = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const route = await Route.findById(req.params.id)
+      .populate('comments.author', 'name email');
+
+    if (!route) {
+      return response.error(res, 'Ruta no encontrada', 404);
+    }
+
+    const isSubscriber = route.subscribers.some(s => s.equals(userId));
+    const isDriver = route.assignedDriver && route.assignedDriver.equals(userId);
+
+    if (!isSubscriber && !isDriver) {
+      return response.error(res, 'Solo los suscriptores o el conductor pueden ver los comentarios', 403);
+    }
+
+    response.success(res, route.comments, 'Comentarios obtenidos exitosamente');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getActiveRoutes,
   getRouteById,
   createRoute,
   updateRoute,
   updateRouteLocation,
-  deleteRoute
+  deleteRoute,
+  subscribeToRoute,
+  addRouteComment,
+  getRouteComments
 };

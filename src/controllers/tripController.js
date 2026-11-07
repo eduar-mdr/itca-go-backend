@@ -100,6 +100,13 @@ const requestSeat = async (req, res, next) => {
       });
     }
 
+    if (trip.hasActiveChat) {
+      await firebaseService.notifyActiveChatOnSubscription(
+        userId,
+        `${trip.origin} → ${trip.destination}`
+      );
+    }
+
     response.success(res, trip, 'Cupo reservado exitosamente');
   } catch (err) {
     next(err);
@@ -175,10 +182,89 @@ const deleteTrip = async (req, res, next) => {
   }
 };
 
+const addTripComment = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { text } = req.body;
+
+    if (!text || !text.trim()) {
+      return response.error(res, 'El texto del comentario es obligatorio', 400);
+    }
+
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return response.error(res, 'Viaje no encontrado', 404);
+    }
+
+    const isPassenger = trip.passengers.some(p => p.equals(userId));
+    const isDriver = trip.driver.equals(userId);
+
+    if (!isPassenger && !isDriver) {
+      return response.error(res, 'Solo los pasajeros o el conductor pueden comentar en este viaje', 403);
+    }
+
+    trip.comments.push({ author: userId, text: text.trim() });
+
+    const isFirstComment = !trip.hasActiveChat;
+    if (isFirstComment) {
+      trip.hasActiveChat = true;
+    }
+
+    await trip.save();
+
+    await firebaseService.pushCommentToRTDB('trip', trip._id, {
+      authorName: req.user.name,
+      text: text.trim()
+    });
+
+    if (isFirstComment) {
+      await firebaseService.notifyFirstComment(
+        trip._id,
+        'trip',
+        `${trip.origin} → ${trip.destination}`,
+        trip.passengers
+      );
+    }
+
+    const populated = await Trip.findById(trip._id)
+      .populate('comments.author', 'name email');
+
+    response.success(res, populated.comments, 'Comentario agregado exitosamente', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getTripComments = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const trip = await Trip.findById(req.params.id)
+      .populate('comments.author', 'name email');
+
+    if (!trip) {
+      return response.error(res, 'Viaje no encontrado', 404);
+    }
+
+    const isPassenger = trip.passengers.some(p => p.equals(userId));
+    const isDriver = trip.driver.equals(userId);
+
+    if (!isPassenger && !isDriver) {
+      return response.error(res, 'Solo los pasajeros o el conductor pueden ver los comentarios', 403);
+    }
+
+    response.success(res, trip.comments, 'Comentarios obtenidos exitosamente');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getAvailableTrips,
   createTrip,
   requestSeat,
   updateTripStatus,
-  deleteTrip
+  deleteTrip,
+  addTripComment,
+  getTripComments
 };
