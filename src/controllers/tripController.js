@@ -109,7 +109,7 @@ const requestSeat = async (req, res, next) => {
 const updateTripStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
-    const allowedStatuses = ['in_progress', 'completed', 'cancelled'];
+    const allowedStatuses = ['in_progress', 'completed', 'cancelled', 'delayed'];
 
     if (!status || !allowedStatuses.includes(status)) {
       return response.error(res, `Estado inválido. Valores permitidos: ${allowedStatuses.join(', ')}`, 400);
@@ -135,7 +135,8 @@ const updateTripStatus = async (req, res, next) => {
     const statusLabels = {
       in_progress: 'en proceso',
       completed: 'completado',
-      cancelled: 'cancelado'
+      cancelled: 'cancelado',
+      delayed: 'retrasado'
     };
 
     await firebaseService.sendPushNotification(

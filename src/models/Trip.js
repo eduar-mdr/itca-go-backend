@@ -41,7 +41,7 @@ const tripSchema = new Schema({
   status: {
     type: String,
     enum: {
-      values: ['available', 'full', 'in_progress', 'completed', 'cancelled'],
+      values: ['available', 'full', 'in_progress', 'completed', 'cancelled', 'delayed'],
       message: 'Estado no válido'
     },
     default: 'available'
