@@ -15,6 +15,18 @@ const commentSchema = new Schema({
   timestamps: { createdAt: true, updatedAt: false }
 });
 
+const geoPointSchema = {
+  type: {
+    type: String,
+    enum: ['Point'],
+    default: 'Point'
+  },
+  coordinates: {
+    type: [Number],
+    default: [0, 0]
+  }
+};
+
 const tripSchema = new Schema({
   driver: {
     type: Schema.Types.ObjectId,
@@ -35,6 +47,8 @@ const tripSchema = new Schema({
     required: [true, 'El destino es obligatorio'],
     trim: true
   },
+  originLocation: geoPointSchema,
+  destinationLocation: geoPointSchema,
   departureTime: {
     type: Date,
     required: [true, 'La fecha y hora de salida es obligatoria']

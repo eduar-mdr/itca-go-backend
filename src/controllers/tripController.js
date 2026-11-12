@@ -15,29 +15,48 @@ const getAvailableTrips = async (req, res, next) => {
   }
 };
 
+const getTripById = async (req, res, next) => {
+  try {
+    const trip = await Trip.findById(req.params.id)
+      .populate('driver', 'name email phone')
+      .populate('route', 'name origin destination')
+      .populate('passengers', 'name email');
+
+    if (!trip) {
+      return response.error(res, 'Viaje no encontrado', 404);
+    }
+
+    response.success(res, trip, 'Viaje obtenido exitosamente');
+  } catch (err) {
+    next(err);
+  }
+};
+
 const createTrip = async (req, res, next) => {
   try {
-    const { route, origin, destination, departureTime, totalSeats, simulatedPrice } = req.body;
+    const { route, origin, destination, originLocation, destinationLocation, departureTime, totalSeats, simulatedPrice } = req.body;
 
     const trip = await Trip.create({
       driver: req.user._id,
       route,
       origin,
       destination,
+      originLocation,
+      destinationLocation,
       departureTime,
       totalSeats,
       availableSeats: totalSeats,
       simulatedPrice
     });
 
-    await firebaseService.updateTripStatus(trip._id, 'available', {
+    firebaseService.updateTripStatus(trip._id, 'available', {
       driver: req.user.name,
       origin,
       destination,
       departureTime,
       totalSeats,
       availableSeats: totalSeats
-    });
+    }).catch(err => console.error('[RTDB] Error sync trip:', err.message));
 
     response.success(res, trip, 'Viaje creado exitosamente', 201);
   } catch (err) {
@@ -85,26 +104,26 @@ const requestSeat = async (req, res, next) => {
       trip.status = 'full';
       await trip.save();
 
-      await firebaseService.updateTripStatus(trip._id, 'full', {
+      firebaseService.updateTripStatus(trip._id, 'full', {
         availableSeats: 0
-      });
+      }).catch(err => console.error('[RTDB] Error sync trip:', err.message));
 
-      await firebaseService.sendPushNotification(
+      firebaseService.sendPushNotification(
         `trip_${trip._id}`,
         'Viaje lleno',
         `El viaje de ${trip.origin} a ${trip.destination} ha alcanzado su cupo máximo`
-      );
+      ).catch(err => console.error('[FCM] Error:', err.message));
     } else {
-      await firebaseService.updateTripStatus(trip._id, trip.status, {
+      firebaseService.updateTripStatus(trip._id, trip.status, {
         availableSeats: trip.availableSeats
-      });
+      }).catch(err => console.error('[RTDB] Error sync trip:', err.message));
     }
 
     if (trip.hasActiveChat) {
-      await firebaseService.notifyActiveChatOnSubscription(
+      firebaseService.notifyActiveChatOnSubscription(
         userId,
         `${trip.origin} → ${trip.destination}`
-      );
+      ).catch(err => console.error('[FCM] Error:', err.message));
     }
 
     response.success(res, trip, 'Cupo reservado exitosamente');
@@ -135,9 +154,9 @@ const updateTripStatus = async (req, res, next) => {
     trip.status = status;
     await trip.save();
 
-    await firebaseService.updateTripStatus(trip._id, status, {
+    firebaseService.updateTripStatus(trip._id, status, {
       availableSeats: trip.availableSeats
-    });
+    }).catch(err => console.error('[RTDB] Error sync trip:', err.message));
 
     const statusLabels = {
       in_progress: 'en proceso',
@@ -146,7 +165,7 @@ const updateTripStatus = async (req, res, next) => {
       delayed: 'retrasado'
     };
 
-    await firebaseService.sendPushNotification(
+    firebaseService.sendPushNotification(
       `trip_${trip._id}`,
       'Actualización de viaje',
       `El viaje de ${trip.origin} a ${trip.destination} ahora está ${statusLabels[status]}`
@@ -213,18 +232,18 @@ const addTripComment = async (req, res, next) => {
 
     await trip.save();
 
-    await firebaseService.pushCommentToRTDB('trip', trip._id, {
+    firebaseService.pushCommentToRTDB('trip', trip._id, {
       authorName: req.user.name,
       text: text.trim()
-    });
+    }).catch(err => console.error('[RTDB] Error push comment:', err.message));
 
     if (isFirstComment) {
-      await firebaseService.notifyFirstComment(
+      firebaseService.notifyFirstComment(
         trip._id,
         'trip',
         `${trip.origin} → ${trip.destination}`,
         trip.passengers
-      );
+      ).catch(err => console.error('[FCM] Error:', err.message));
     }
 
     const populated = await Trip.findById(trip._id)
@@ -261,6 +280,7 @@ const getTripComments = async (req, res, next) => {
 
 module.exports = {
   getAvailableTrips,
+  getTripById,
   createTrip,
   requestSeat,
   updateTripStatus,

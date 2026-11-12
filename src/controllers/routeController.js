@@ -72,11 +72,11 @@ const updateRoute = async (req, res, next) => {
     await route.save();
 
     if (req.body.active === false) {
-      await firebaseService.sendPushNotification(
+      firebaseService.sendPushNotification(
         `route_${route._id}`,
         'Ruta desactivada',
         `La ruta "${route.name}" ha sido desactivada`
-      );
+      ).catch(err => console.error('[FCM] Error:', err.message));
     }
 
     response.success(res, route, 'Ruta actualizada exitosamente');
@@ -106,7 +106,8 @@ const updateRouteLocation = async (req, res, next) => {
     route.currentLocation = { type: 'Point', coordinates };
     await route.save();
 
-    await firebaseService.updateRouteLocation(route._id, coordinates);
+    firebaseService.updateRouteLocation(route._id, coordinates)
+      .catch(err => console.error('[RTDB] Error sync location:', err.message));
 
     response.success(res, route, 'Ubicación actual de ruta actualizada exitosamente');
   } catch (err) {
@@ -156,7 +157,8 @@ const subscribeToRoute = async (req, res, next) => {
     await route.save();
 
     if (route.hasActiveChat) {
-      await firebaseService.notifyActiveChatOnSubscription(userId, route.name);
+      firebaseService.notifyActiveChatOnSubscription(userId, route.name)
+        .catch(err => console.error('[FCM] Error:', err.message));
     }
 
     response.success(res, route, 'Suscripción a la ruta exitosa');
@@ -196,18 +198,18 @@ const addRouteComment = async (req, res, next) => {
 
     await route.save();
 
-    await firebaseService.pushCommentToRTDB('route', route._id, {
+    firebaseService.pushCommentToRTDB('route', route._id, {
       authorName: req.user.name,
       text: text.trim()
-    });
+    }).catch(err => console.error('[RTDB] Error push comment:', err.message));
 
     if (isFirstComment) {
-      await firebaseService.notifyFirstComment(
+      firebaseService.notifyFirstComment(
         route._id,
         'route',
         route.name,
         route.subscribers
-      );
+      ).catch(err => console.error('[FCM] Error:', err.message));
     }
 
     const populated = await Route.findById(route._id)

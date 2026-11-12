@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const {
   getAvailableTrips,
+  getTripById,
   createTrip,
   requestSeat,
   updateTripStatus,
@@ -13,6 +14,7 @@ const { requireAuth } = require('../middlewares/authMiddleware');
 const router = Router();
 
 router.get('/', getAvailableTrips);
+router.get('/:id', getTripById);
 router.post('/', requireAuth, createTrip);
 router.post('/:id/request', requireAuth, requestSeat);
 router.patch('/:id/status', requireAuth, updateTripStatus);
