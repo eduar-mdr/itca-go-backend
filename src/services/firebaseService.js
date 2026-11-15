@@ -34,6 +34,13 @@ const pushCommentToRTDB = async (entityType, entityId, comment) => {
   });
 };
 
+const updateRouteData = async (routeId, data = {}) => {
+  await db.ref(`routes/${routeId}`).update({
+    ...data,
+    updatedAt: new Date().toISOString()
+  });
+};
+
 const notifyFirstComment = async (entityId, entityType, entityName, targetUserIds) => {
   const typeLabel = entityType === 'route' ? 'ruta' : 'viaje';
 
@@ -60,6 +67,7 @@ const notifyActiveChatOnSubscription = async (userId, entityName) => {
 
 module.exports = {
   updateRouteLocation,
+  updateRouteData,
   updateTripStatus,
   sendPushNotification,
   pushCommentToRTDB,

@@ -71,6 +71,9 @@ const updateRoute = async (req, res, next) => {
     if (schedule !== undefined) route.schedule = schedule;
     await route.save();
 
+    firebaseService.updateRouteData(route._id, { active: route.active, name: route.name })
+      .catch(err => console.error('[RTDB] Error sync route:', err.message));
+
     if (req.body.active === false) {
       firebaseService.sendPushNotification(
         `route_${route._id}`,
@@ -156,6 +159,9 @@ const subscribeToRoute = async (req, res, next) => {
     route.subscribers.push(userId);
     await route.save();
 
+    firebaseService.updateRouteData(route._id, { subscribersCount: route.subscribers.length })
+      .catch(err => console.error('[RTDB] Error sync route:', err.message));
+
     if (route.hasActiveChat) {
       firebaseService.notifyActiveChatOnSubscription(userId, route.name)
         .catch(err => console.error('[FCM] Error:', err.message));
@@ -182,6 +188,9 @@ const unsubscribeFromRoute = async (req, res, next) => {
 
     route.subscribers.pull(userId);
     await route.save();
+
+    firebaseService.updateRouteData(route._id, { subscribersCount: route.subscribers.length })
+      .catch(err => console.error('[RTDB] Error sync route:', err.message));
 
     response.success(res, route, 'Suscripción cancelada exitosamente');
   } catch (err) {
