@@ -278,11 +278,103 @@ const getTripComments = async (req, res, next) => {
   }
 };
 
+const updateTrip = async (req, res, next) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return response.error(res, 'Viaje no encontrado', 404);
+    }
+
+    if (!trip.driver.equals(req.user._id)) {
+      return response.error(res, 'Solo el conductor creador puede editar este viaje', 403);
+    }
+
+    const { origin, destination, originLocation, destinationLocation, departureTime, totalSeats, simulatedPrice } = req.body;
+
+    if (totalSeats !== undefined) {
+      const newAvailable = totalSeats - trip.passengers.length;
+      if (newAvailable < 0) {
+        return response.error(res, `El nuevo cupo total no puede ser menor que los pasajeros actuales (${trip.passengers.length})`, 400);
+      }
+      trip.totalSeats = totalSeats;
+      trip.availableSeats = newAvailable;
+      if (newAvailable > 0 && trip.status === 'full') trip.status = 'available';
+      if (newAvailable === 0 && trip.status === 'available') trip.status = 'full';
+    }
+
+    if (origin !== undefined) trip.origin = origin;
+    if (destination !== undefined) trip.destination = destination;
+    if (originLocation !== undefined) trip.originLocation = originLocation;
+    if (destinationLocation !== undefined) trip.destinationLocation = destinationLocation;
+    if (departureTime !== undefined) trip.departureTime = departureTime;
+    if (simulatedPrice !== undefined) trip.simulatedPrice = simulatedPrice;
+
+    await trip.save();
+
+    if (trip.passengers.length > 0) {
+      firebaseService.sendPushNotification(
+        `trip_${trip._id}`,
+        'Viaje actualizado',
+        `El viaje de ${trip.origin} a ${trip.destination} ha sido modificado por el conductor`
+      ).catch(err => console.error('[FCM] Error:', err.message));
+
+      firebaseService.updateTripStatus(trip._id, trip.status, {
+        availableSeats: trip.availableSeats
+      }).catch(err => console.error('[RTDB] Error sync trip:', err.message));
+    }
+
+    response.success(res, trip, 'Viaje actualizado exitosamente');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const cancelRequest = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const existing = await Trip.findById(req.params.id);
+
+    if (!existing) {
+      return response.error(res, 'Viaje no encontrado', 404);
+    }
+
+    if (!existing.passengers.some(p => p.equals(userId))) {
+      return response.error(res, 'No eres pasajero de este viaje', 400);
+    }
+
+    if (existing.status === 'in_progress') {
+      return response.error(res, 'No puedes salir de un viaje en curso', 400);
+    }
+
+    const trip = await Trip.findOneAndUpdate(
+      { _id: req.params.id, passengers: userId },
+      { $pull: { passengers: userId }, $inc: { availableSeats: 1 } },
+      { new: true }
+    );
+
+    if (trip.status === 'full' && trip.availableSeats > 0) {
+      trip.status = 'available';
+      await trip.save();
+    }
+
+    firebaseService.updateTripStatus(trip._id, trip.status, {
+      availableSeats: trip.availableSeats
+    }).catch(err => console.error('[RTDB] Error sync trip:', err.message));
+
+    response.success(res, trip, 'Reserva cancelada exitosamente');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getAvailableTrips,
   getTripById,
   createTrip,
+  updateTrip,
   requestSeat,
+  cancelRequest,
   updateTripStatus,
   deleteTrip,
   addTripComment,

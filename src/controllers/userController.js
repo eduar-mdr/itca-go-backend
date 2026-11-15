@@ -1,4 +1,6 @@
 const User = require('../models/User');
+const Route = require('../models/Route');
+const Trip = require('../models/Trip');
 const response = require('../helpers/responseHandler');
 
 const syncUser = async (req, res, next) => {
@@ -45,4 +47,60 @@ const getProfile = async (req, res, next) => {
   }
 };
 
-module.exports = { syncUser, getProfile };
+const getMyRoutes = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+
+    const routes = await Route.find({
+      $or: [
+        { assignedDriver: userId },
+        { subscribers: userId, active: true }
+      ]
+    })
+      .populate('assignedDriver', 'name email phone')
+      .sort({ createdAt: -1 });
+
+    const data = routes.map((route) => {
+      const obj = route.toObject();
+      obj.relationship = route.assignedDriver && route.assignedDriver._id.equals(userId)
+        ? 'owner'
+        : 'subscribed';
+      return obj;
+    });
+
+    response.success(res, data, 'Mis rutas obtenidas exitosamente');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getMyTrips = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+
+    const trips = await Trip.find({
+      $or: [
+        { driver: userId },
+        { passengers: userId }
+      ]
+    })
+      .populate('driver', 'name email phone')
+      .populate('passengers', 'name email')
+      .populate('route', 'name origin destination')
+      .sort({ departureTime: 1 });
+
+    const data = trips.map((trip) => {
+      const obj = trip.toObject();
+      obj.relationship = trip.driver && trip.driver._id.equals(userId)
+        ? 'owner'
+        : 'passenger';
+      return obj;
+    });
+
+    response.success(res, data, 'Mis viajes obtenidos exitosamente');
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { syncUser, getProfile, getMyRoutes, getMyTrips };

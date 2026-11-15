@@ -167,6 +167,28 @@ const subscribeToRoute = async (req, res, next) => {
   }
 };
 
+const unsubscribeFromRoute = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const route = await Route.findById(req.params.id);
+
+    if (!route) {
+      return response.error(res, 'Ruta no encontrada', 404);
+    }
+
+    if (!route.subscribers.some(s => s.equals(userId))) {
+      return response.error(res, 'No estás suscrito a esta ruta', 400);
+    }
+
+    route.subscribers.pull(userId);
+    await route.save();
+
+    response.success(res, route, 'Suscripción cancelada exitosamente');
+  } catch (err) {
+    next(err);
+  }
+};
+
 const addRouteComment = async (req, res, next) => {
   try {
     const userId = req.user._id;
@@ -252,6 +274,7 @@ module.exports = {
   updateRouteLocation,
   deleteRoute,
   subscribeToRoute,
+  unsubscribeFromRoute,
   addRouteComment,
   getRouteComments
 };

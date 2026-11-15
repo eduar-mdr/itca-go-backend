@@ -7,6 +7,7 @@ const {
   updateRouteLocation,
   deleteRoute,
   subscribeToRoute,
+  unsubscribeFromRoute,
   addRouteComment,
   getRouteComments
 } = require('../controllers/routeController');
@@ -22,6 +23,7 @@ router.patch('/:id/location', requireAuth, requireRole('driver'), updateRouteLoc
 router.delete('/:id', requireAuth, requireRole('driver'), deleteRoute);
 
 router.post('/:id/subscribe', requireAuth, subscribeToRoute);
+router.post('/:id/unsubscribe', requireAuth, unsubscribeFromRoute);
 router.post('/:id/comments', requireAuth, addRouteComment);
 router.get('/:id/comments', requireAuth, getRouteComments);
 
