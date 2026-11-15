@@ -106,6 +106,10 @@ const updateRouteLocation = async (req, res, next) => {
       return response.error(res, 'No tienes permiso para actualizar la ubicación de esta ruta', 403);
     }
 
+    if (route.status !== 'in_progress') {
+      return response.error(res, 'La ruta debe estar en curso para actualizar la ubicación', 400);
+    }
+
     route.currentLocation = { type: 'Point', coordinates };
     await route.save();
 
@@ -113,6 +117,73 @@ const updateRouteLocation = async (req, res, next) => {
       .catch(err => console.error('[RTDB] Error sync location:', err.message));
 
     response.success(res, route, 'Ubicación actual de ruta actualizada exitosamente');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const ALLOWED_TRANSITIONS = {
+  idle: ['in_progress'],
+  in_progress: ['completed', 'idle'],
+  completed: ['idle'],
+};
+
+const updateRouteStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+
+    if (!status) {
+      return response.error(res, 'El estado es obligatorio', 400);
+    }
+
+    const route = await Route.findById(req.params.id);
+
+    if (!route) {
+      return response.error(res, 'Ruta no encontrada', 404);
+    }
+
+    if (!route.assignedDriver || !route.assignedDriver.equals(req.user._id)) {
+      return response.error(res, 'Solo el conductor asignado puede cambiar el estado de la ruta', 403);
+    }
+
+    const allowed = ALLOWED_TRANSITIONS[route.status] || [];
+    if (!allowed.includes(status)) {
+      return response.error(
+        res,
+        `No se puede cambiar de "${route.status}" a "${status}". Transiciones permitidas: ${allowed.join(', ') || 'ninguna'}`,
+        400
+      );
+    }
+
+    route.status = status;
+
+    if (status === 'in_progress') {
+      route.currentLocation = route.originLocation;
+    } else {
+      route.currentLocation = route.originLocation;
+    }
+
+    await route.save();
+
+    firebaseService.updateRouteData(route._id, { status: route.status })
+      .catch(err => console.error('[RTDB] Error sync route status:', err.message));
+
+    const statusLabels = {
+      in_progress: 'en curso',
+      completed: 'finalizado',
+      idle: 'detenido',
+    };
+
+    if (status === 'in_progress' || status === 'completed') {
+      const action = status === 'in_progress' ? 'ha iniciado su recorrido' : 'ha finalizado su recorrido';
+      firebaseService.sendPushNotification(
+        `route_${route._id}`,
+        'Actualización de ruta',
+        `La ruta "${route.name}" ${action}`
+      ).catch(err => console.error('[FCM] Error:', err.message));
+    }
+
+    response.success(res, route, `Estado de la ruta actualizado a "${statusLabels[status]}"`);
   } catch (err) {
     next(err);
   }
@@ -281,6 +352,7 @@ module.exports = {
   createRoute,
   updateRoute,
   updateRouteLocation,
+  updateRouteStatus,
   deleteRoute,
   subscribeToRoute,
   unsubscribeFromRoute,

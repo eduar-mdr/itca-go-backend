@@ -5,6 +5,7 @@ const {
   createRoute,
   updateRoute,
   updateRouteLocation,
+  updateRouteStatus,
   deleteRoute,
   subscribeToRoute,
   unsubscribeFromRoute,
@@ -20,6 +21,7 @@ router.get('/:id', getRouteById);
 router.post('/', requireAuth, requireRole('driver'), createRoute);
 router.put('/:id', requireAuth, requireRole('driver'), updateRoute);
 router.patch('/:id/location', requireAuth, requireRole('driver'), updateRouteLocation);
+router.patch('/:id/status', requireAuth, requireRole('driver'), updateRouteStatus);
 router.delete('/:id', requireAuth, requireRole('driver'), deleteRoute);
 
 router.post('/:id/subscribe', requireAuth, subscribeToRoute);

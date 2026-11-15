@@ -53,6 +53,14 @@ const routeSchema = new Schema({
     type: Boolean,
     default: true
   },
+  status: {
+    type: String,
+    enum: {
+      values: ['idle', 'in_progress', 'completed'],
+      message: 'Estado de ruta no válido'
+    },
+    default: 'idle'
+  },
   originLocation: geoPointSchema,
   destinationLocation: geoPointSchema,
   currentLocation: geoPointSchema,
