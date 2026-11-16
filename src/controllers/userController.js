@@ -103,4 +103,20 @@ const getMyTrips = async (req, res, next) => {
   }
 };
 
-module.exports = { syncUser, getProfile, getMyRoutes, getMyTrips };
+const saveFcmToken = async (req, res, next) => {
+  try {
+    const { fcmToken } = req.body;
+
+    if (!fcmToken) {
+      return response.error(res, 'El token FCM es obligatorio', 400);
+    }
+
+    await User.findByIdAndUpdate(req.user._id, { fcmToken }, { new: true });
+
+    response.success(res, null, 'Token FCM registrado exitosamente');
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { syncUser, getProfile, getMyRoutes, getMyTrips, saveFcmToken };

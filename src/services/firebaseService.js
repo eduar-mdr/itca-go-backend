@@ -1,8 +1,16 @@
 const { admin, db } = require('../config/firebase');
+const User = require('../models/User');
 
 const updateRouteLocation = async (routeId, coordinates) => {
   await db.ref(`routes/${routeId}/currentLocation`).set({
     coordinates,
+    updatedAt: new Date().toISOString()
+  });
+};
+
+const updateRouteData = async (routeId, data = {}) => {
+  await db.ref(`routes/${routeId}`).update({
+    ...data,
     updatedAt: new Date().toISOString()
   });
 };
@@ -15,17 +23,6 @@ const updateTripStatus = async (tripId, status, extra = {}) => {
   });
 };
 
-const sendPushNotification = async (topic, title, body) => {
-  try {
-    await admin.messaging().send({
-      topic,
-      notification: { title, body }
-    });
-  } catch (err) {
-    console.error('[FCM] Error enviando notificación:', err.message);
-  }
-};
-
 const pushCommentToRTDB = async (entityType, entityId, comment) => {
   await db.ref(`comments/${entityType}_${entityId}`).push({
     author: comment.authorName,
@@ -34,34 +31,35 @@ const pushCommentToRTDB = async (entityType, entityId, comment) => {
   });
 };
 
-const updateRouteData = async (routeId, data = {}) => {
-  await db.ref(`routes/${routeId}`).update({
-    ...data,
-    updatedAt: new Date().toISOString()
-  });
-};
+const notifyUsers = async (userIds, notification) => {
+  if (!userIds || userIds.length === 0) return;
 
-const notifyFirstComment = async (entityId, entityType, entityName, targetUserIds) => {
-  const typeLabel = entityType === 'route' ? 'ruta' : 'viaje';
+  const timestamp = new Date().toISOString();
 
-  await sendPushNotification(
-    `${entityType}_${entityId}`,
-    'Nuevo diálogo iniciado',
-    `Se ha iniciado una sección de comentarios en la ${typeLabel} "${entityName}"`
-  );
-};
+  for (const userId of userIds) {
+    db.ref(`notifications/${userId}`).push({
+      title: notification.title,
+      body: notification.body,
+      type: notification.type,
+      entityId: String(notification.entityId),
+      createdAt: timestamp
+    }).catch(err => console.error('[RTDB] Error writing notification:', err.message));
+  }
 
-const notifyActiveChatOnSubscription = async (userId, entityName) => {
   try {
-    await admin.messaging().send({
-      topic: `user_${userId}`,
-      notification: {
-        title: 'Diálogo en curso',
-        body: `La ruta "${entityName}" tiene un diálogo activo`
-      }
-    });
+    const users = await User.find(
+      { _id: { $in: userIds }, fcmToken: { $exists: true, $ne: null } },
+      'fcmToken'
+    );
+    for (const user of users) {
+      admin.messaging().send({
+        token: user.fcmToken,
+        notification: { title: notification.title, body: notification.body },
+        data: { type: notification.type, entityId: String(notification.entityId) }
+      }).catch(err => console.error('[FCM] Error sending to device:', err.message));
+    }
   } catch (err) {
-    console.error('[FCM] Error notificando chat activo:', err.message);
+    console.error('[FCM] Error fetching user tokens:', err.message);
   }
 };
 
@@ -69,8 +67,6 @@ module.exports = {
   updateRouteLocation,
   updateRouteData,
   updateTripStatus,
-  sendPushNotification,
   pushCommentToRTDB,
-  notifyFirstComment,
-  notifyActiveChatOnSubscription
+  notifyUsers
 };

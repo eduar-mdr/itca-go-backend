@@ -34,6 +34,10 @@ const userSchema = new Schema({
   phone: {
     type: String,
     trim: true
+  },
+  fcmToken: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true

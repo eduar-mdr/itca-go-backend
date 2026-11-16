@@ -108,11 +108,12 @@ const requestSeat = async (req, res, next) => {
         availableSeats: 0
       }).catch(err => console.error('[RTDB] Error sync trip:', err.message));
 
-      firebaseService.sendPushNotification(
-        `trip_${trip._id}`,
-        'Viaje lleno',
-        `El viaje de ${trip.origin} a ${trip.destination} ha alcanzado su cupo máximo`
-      ).catch(err => console.error('[FCM] Error:', err.message));
+      firebaseService.notifyUsers(trip.passengers, {
+        title: 'Viaje lleno',
+        body: `El viaje de ${trip.origin} a ${trip.destination} ha alcanzado su cupo máximo`,
+        type: 'trip',
+        entityId: trip._id
+      }).catch(err => console.error('[Notify] Error:', err.message));
     } else {
       firebaseService.updateTripStatus(trip._id, trip.status, {
         availableSeats: trip.availableSeats
@@ -120,10 +121,12 @@ const requestSeat = async (req, res, next) => {
     }
 
     if (trip.hasActiveChat) {
-      firebaseService.notifyActiveChatOnSubscription(
-        userId,
-        `${trip.origin} → ${trip.destination}`
-      ).catch(err => console.error('[FCM] Error:', err.message));
+      firebaseService.notifyUsers([userId], {
+        title: 'Diálogo en curso',
+        body: `El viaje de ${trip.origin} a ${trip.destination} tiene un diálogo activo`,
+        type: 'trip',
+        entityId: trip._id
+      }).catch(err => console.error('[Notify] Error:', err.message));
     }
 
     response.success(res, trip, 'Cupo reservado exitosamente');
@@ -165,11 +168,12 @@ const updateTripStatus = async (req, res, next) => {
       delayed: 'retrasado'
     };
 
-    firebaseService.sendPushNotification(
-      `trip_${trip._id}`,
-      'Actualización de viaje',
-      `El viaje de ${trip.origin} a ${trip.destination} ahora está ${statusLabels[status]}`
-    );
+    firebaseService.notifyUsers(trip.passengers, {
+      title: 'Actualización de viaje',
+      body: `El viaje de ${trip.origin} a ${trip.destination} ahora está ${statusLabels[status]}`,
+      type: 'trip',
+      entityId: trip._id
+    }).catch(err => console.error('[Notify] Error:', err.message));
 
     response.success(res, trip, `Estado del viaje actualizado a "${statusLabels[status]}"`);
   } catch (err) {
@@ -237,13 +241,21 @@ const addTripComment = async (req, res, next) => {
       text: text.trim()
     }).catch(err => console.error('[RTDB] Error push comment:', err.message));
 
+    const notifyIds = trip.passengers.filter(p => !p.equals(userId));
     if (isFirstComment) {
-      firebaseService.notifyFirstComment(
-        trip._id,
-        'trip',
-        `${trip.origin} → ${trip.destination}`,
-        trip.passengers
-      ).catch(err => console.error('[FCM] Error:', err.message));
+      firebaseService.notifyUsers(notifyIds, {
+        title: 'Nuevo diálogo iniciado',
+        body: `Se ha iniciado un diálogo en el viaje de ${trip.origin} a ${trip.destination}`,
+        type: 'comment',
+        entityId: trip._id
+      }).catch(err => console.error('[Notify] Error:', err.message));
+    } else {
+      firebaseService.notifyUsers(notifyIds, {
+        title: 'Nuevo comentario',
+        body: `Nuevo comentario en el viaje de ${trip.origin} a ${trip.destination}`,
+        type: 'comment',
+        entityId: trip._id
+      }).catch(err => console.error('[Notify] Error:', err.message));
     }
 
     const populated = await Trip.findById(trip._id)
@@ -312,16 +324,18 @@ const updateTrip = async (req, res, next) => {
 
     await trip.save();
 
-    if (trip.passengers.length > 0) {
-      firebaseService.sendPushNotification(
-        `trip_${trip._id}`,
-        'Viaje actualizado',
-        `El viaje de ${trip.origin} a ${trip.destination} ha sido modificado por el conductor`
-      ).catch(err => console.error('[FCM] Error:', err.message));
+    firebaseService.updateTripStatus(trip._id, trip.status, {
+      availableSeats: trip.availableSeats
+    }).catch(err => console.error('[RTDB] Error sync trip:', err.message));
 
-      firebaseService.updateTripStatus(trip._id, trip.status, {
-        availableSeats: trip.availableSeats
-      }).catch(err => console.error('[RTDB] Error sync trip:', err.message));
+    if (trip.passengers.length > 0) {
+      const editNotifyIds = trip.passengers.filter(p => !p.equals(req.user._id));
+      firebaseService.notifyUsers(editNotifyIds, {
+        title: 'Viaje actualizado',
+        body: `El viaje de ${trip.origin} a ${trip.destination} ha sido modificado por el conductor`,
+        type: 'trip',
+        entityId: trip._id
+      }).catch(err => console.error('[Notify] Error:', err.message));
     }
 
     response.success(res, trip, 'Viaje actualizado exitosamente');

@@ -75,11 +75,12 @@ const updateRoute = async (req, res, next) => {
       .catch(err => console.error('[RTDB] Error sync route:', err.message));
 
     if (req.body.active === false) {
-      firebaseService.sendPushNotification(
-        `route_${route._id}`,
-        'Ruta desactivada',
-        `La ruta "${route.name}" ha sido desactivada`
-      ).catch(err => console.error('[FCM] Error:', err.message));
+      firebaseService.notifyUsers(route.subscribers, {
+        title: 'Ruta desactivada',
+        body: `La ruta "${route.name}" ha sido desactivada`,
+        type: 'route',
+        entityId: route._id
+      }).catch(err => console.error('[Notify] Error:', err.message));
     }
 
     response.success(res, route, 'Ruta actualizada exitosamente');
@@ -174,13 +175,20 @@ const updateRouteStatus = async (req, res, next) => {
       idle: 'detenido',
     };
 
-    if (status === 'in_progress' || status === 'completed') {
-      const action = status === 'in_progress' ? 'ha iniciado su recorrido' : 'ha finalizado su recorrido';
-      firebaseService.sendPushNotification(
-        `route_${route._id}`,
-        'Actualización de ruta',
-        `La ruta "${route.name}" ${action}`
-      ).catch(err => console.error('[FCM] Error:', err.message));
+    if (status === 'in_progress') {
+      firebaseService.notifyUsers(route.subscribers, {
+        title: 'Ruta en curso',
+        body: `La ruta "${route.name}" ha iniciado su recorrido`,
+        type: 'route',
+        entityId: route._id
+      }).catch(err => console.error('[Notify] Error:', err.message));
+    } else if (status === 'completed') {
+      firebaseService.notifyUsers(route.subscribers, {
+        title: 'Ruta finalizada',
+        body: `La ruta "${route.name}" ha finalizado su recorrido`,
+        type: 'route',
+        entityId: route._id
+      }).catch(err => console.error('[Notify] Error:', err.message));
     }
 
     response.success(res, route, `Estado de la ruta actualizado a "${statusLabels[status]}"`);
@@ -234,8 +242,12 @@ const subscribeToRoute = async (req, res, next) => {
       .catch(err => console.error('[RTDB] Error sync route:', err.message));
 
     if (route.hasActiveChat) {
-      firebaseService.notifyActiveChatOnSubscription(userId, route.name)
-        .catch(err => console.error('[FCM] Error:', err.message));
+      firebaseService.notifyUsers([userId], {
+        title: 'Diálogo en curso',
+        body: `La ruta "${route.name}" tiene un diálogo activo`,
+        type: 'route',
+        entityId: route._id
+      }).catch(err => console.error('[Notify] Error:', err.message));
     }
 
     response.success(res, route, 'Suscripción a la ruta exitosa');
@@ -305,13 +317,21 @@ const addRouteComment = async (req, res, next) => {
       text: text.trim()
     }).catch(err => console.error('[RTDB] Error push comment:', err.message));
 
+    const notifyIds = route.subscribers.filter(s => !s.equals(userId));
     if (isFirstComment) {
-      firebaseService.notifyFirstComment(
-        route._id,
-        'route',
-        route.name,
-        route.subscribers
-      ).catch(err => console.error('[FCM] Error:', err.message));
+      firebaseService.notifyUsers(notifyIds, {
+        title: 'Nuevo diálogo iniciado',
+        body: `Se ha iniciado un diálogo en la ruta "${route.name}"`,
+        type: 'comment',
+        entityId: route._id
+      }).catch(err => console.error('[Notify] Error:', err.message));
+    } else {
+      firebaseService.notifyUsers(notifyIds, {
+        title: 'Nuevo comentario',
+        body: `Nuevo comentario en la ruta "${route.name}"`,
+        type: 'comment',
+        entityId: route._id
+      }).catch(err => console.error('[Notify] Error:', err.message));
     }
 
     const populated = await Route.findById(route._id)
