@@ -12,6 +12,7 @@ const errorHandler = require('./middlewares/errorHandler');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1);
 app.use(express.json());
 app.use(cors());
 app.use(helmet());
@@ -23,7 +24,7 @@ app.use(errorHandler);
 
 const start = async () => {
   await connectDB();
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`[${process.env.NODE_ID || 'Node-Local'}] Servidor corriendo en puerto ${PORT}`);
   });
 };

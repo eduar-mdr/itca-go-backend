@@ -1,0 +1,83 @@
+#version: '3.8'
+
+services:
+  api-1:
+    build: .
+    container_name: itca-api-1
+    env_file: .env
+    environment:
+      - NODE_ID=Node-1
+      - PORT=3000
+    volumes:
+      - ./src/config/serviceAccountKey.json:/usr/src/app/src/config/serviceAccountKey.json:ro
+    networks:
+      - itca-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  api-2:
+    build: .
+    container_name: itca-api-2
+    env_file: .env
+    environment:
+      - NODE_ID=Node-2
+      - PORT=3000
+    volumes:
+      - ./src/config/serviceAccountKey.json:/usr/src/app/src/config/serviceAccountKey.json:ro
+    networks:
+      - itca-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  api-3:
+    build: .
+    container_name: itca-api-3
+    env_file: .env
+    environment:
+      - NODE_ID=Node-3
+      - PORT=3000
+    volumes:
+      - ./src/config/serviceAccountKey.json:/usr/src/app/src/config/serviceAccountKey.json:ro
+    networks:
+      - itca-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  nginx-lb:
+    image: nginx:alpine
+    container_name: itca-nginx-lb
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      api-1:
+        condition: service_healthy
+      api-2:
+        condition: service_healthy
+      api-3:
+        condition: service_healthy
+    networks:
+      - itca-net
+    restart: unless-stopped
+
+networks:
+  itca-net:
+    driver: bridge
